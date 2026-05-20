@@ -23,7 +23,7 @@ IMAGE_EXTENSIONS = {'.webp', '.jpg', '.jpeg', '.png', '.bmp'}
 
 # Noise patterns to filter from OCR output
 NOISE_PATTERNS = [
-    r'^kizspy$',
+    r'^kizspy',
     r'^question:?\s*\d*$',
     r'^\(?\s*choose\s*$',
     r'^\s*answer\s*\)?\s*$',
@@ -32,10 +32,10 @@ NOISE_PATTERNS = [
     r'^zoom$',
     r'^close$',
     r'^100%$',
-    r'^\s*[\'\"`_\.\-]\s*$',
-    r'^kizspy\s*\|',
-    r'^\(choose\s+\d+\s+answer',
-    r'^\(choose\s+answer',
+    r'^\s*[\'\"`_\.\-\|]\s*$',
+    r'^\(choose\s+\d*\s*answer',
+    r'^fuoverflowcom$',
+    r'^fuoverflow\.com$',
 ]
 
 NOISE_COMPILED = [re.compile(p, re.IGNORECASE) for p in NOISE_PATTERNS]
@@ -126,9 +126,27 @@ def is_noise(line):
     return False
 
 
+def clean_line(line):
+    """Xóa ký tự pipe `|` và các ký tự noise rời rạc khỏi dòng text."""
+    # Remove stray pipe chars (from red divider line being OCR'd)
+    cleaned = line.replace('|', '').strip()
+    # Remove trailing underscores, dots
+    cleaned = cleaned.rstrip('._')
+    # Collapse multiple spaces
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned
+
+
 def filter_noise(lines):
-    """Lọc bỏ noise lines, trả về danh sách dòng sạch."""
-    return [line.strip() for line in lines if not is_noise(line)]
+    """Lọc bỏ noise lines và làm sạch text, trả về danh sách dòng sạch."""
+    result = []
+    for line in lines:
+        if is_noise(line):
+            continue
+        cleaned = clean_line(line)
+        if cleaned and len(cleaned) > 1:  # Skip single-char remnants
+            result.append(cleaned)
+    return result
 
 
 def detect_option_letter(line):
